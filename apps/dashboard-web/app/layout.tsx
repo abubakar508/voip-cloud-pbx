@@ -1,4 +1,5 @@
 import React from "react";
+import { AppProviders } from "./providers";
 
 export const metadata = {
   title: "VoIP Cloud PBX Dashboard",
@@ -9,7 +10,9 @@ export default function RootLayout(props: { children: React.ReactNode }) {
   const { children } = props;
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

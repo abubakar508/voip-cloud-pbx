@@ -6,22 +6,12 @@ RUN apk add --no-cache ca-certificates tzdata build-base git
 
 WORKDIR /app
 
-# Copy only go.mod/go.sum for this service
-COPY services/api-gateway/go.mod services/api-gateway/go.sum ./services/api-gateway/
-
-# Copy shared-go module files for dependency resolution
-COPY packages/shared-go/go.mod packages/shared-go/go.sum ./packages/shared-go/
-
-WORKDIR /app/services/api-gateway
-
-RUN go mod download
-
-# Now copy the full repo (needed for replace paths)
-WORKDIR /app
 COPY . .
 
 WORKDIR /app/services/api-gateway
-RUN go build -o /out/api-gateway ./...
+
+RUN go mod tidy
+RUN go build -o /out/api-gateway .
 
 FROM alpine:3.19
 

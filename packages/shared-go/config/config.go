@@ -24,6 +24,11 @@ type AppConfig struct {
 	JWTRefreshSecret string
 	JWTAccessTTL     time.Duration
 	JWTRefreshTTL    time.Duration
+
+	RedisPassword string
+	RedisHost     string
+	RedisPort     string
+	NatsURL       string
 }
 
 func Load(serviceName string) *AppConfig {

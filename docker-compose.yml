@@ -229,8 +229,8 @@ services:
       - "traefik.http.services.api.loadbalancer.server.port=8080"
   websocket-service:
     build:
-      context: ./services/websocket-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/websocket-service/Dockerfile
     container_name: voip-websocket-service
     restart: unless-stopped
     environment:
@@ -248,3 +248,50 @@ services:
       - "traefik.http.routers.ws.rule=Host(`api.localhost`) && PathPrefix(`/ws`)"
       - "traefik.http.routers.ws.entrypoints=web"
       - "traefik.http.services.ws.loadbalancer.server.port=8084"
+  sip-service:
+    build:
+      context: .
+      dockerfile: services/sip-service/Dockerfile
+    container_name: voip-sip-service
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SIP_SERVICE_PORT: "5070"
+      SIP_UDP_PORT: "5060"
+      SIP_BIND_ADDR: "0.0.0.0"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-voip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voip_password}
+      POSTGRES_DB: ${POSTGRES_DB:-voip_cloud_pbx}
+      NATS_URL: "nats://nats:4222"
+    networks:
+      - internal
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "5060:5060/udp"
+
+  media-service:
+    build:
+      context: .
+      dockerfile: services/media-service/Dockerfile
+    container_name: voip-media-service
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MEDIA_SERVICE_PORT: "8082"
+      MEDIA_RTP_BASE_PORT: "40000"
+      NATS_URL: "nats://nats:4222"
+    networks:
+      - internal
+    depends_on:
+      - nats
+    ports:
+      - "40000:40000/udp"
