@@ -200,8 +200,8 @@ services:
 
   api-gateway:
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
     container_name: voip-api-gateway
     restart: unless-stopped
     environment:
@@ -227,24 +227,24 @@ services:
       - "traefik.http.routers.api.entrypoints=web"
       - "traefik.http.routers.api.middlewares=cors-global,compression-global,ratelimit-api"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
-    websocket-service:
-      build:
-        context: ./services/websocket-service
-        dockerfile: Dockerfile
-      container_name: voip-websocket-service
-      restart: unless-stopped
-      environment:
-        APP_ENV: ${APP_ENV:-development}
-        LOG_LEVEL: ${LOG_LEVEL:-info}
-        WEBSOCKET_SERVICE_PORT: "8084"
-        JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change_me_access_secret}
-      networks:
-        - internal
-        - public
-      depends_on:
-        - traefik
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.ws.rule=Host(`api.localhost`) && PathPrefix(`/ws`)"
-        - "traefik.http.routers.ws.entrypoints=web"
-        - "traefik.http.services.ws.loadbalancer.server.port=8084"
+  websocket-service:
+    build:
+      context: ./services/websocket-service
+      dockerfile: Dockerfile
+    container_name: voip-websocket-service
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WEBSOCKET_SERVICE_PORT: "8084"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change_me_access_secret}
+    networks:
+      - internal
+      - public
+    depends_on:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ws.rule=Host(`api.localhost`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.ws.entrypoints=web"
+      - "traefik.http.services.ws.loadbalancer.server.port=8084"
