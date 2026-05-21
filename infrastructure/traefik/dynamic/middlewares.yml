@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=none
+http:
+  middlewares:
+    cors-global:
+      headers:
+        accessControlAllowOriginList:
+          - "http://app.localhost"
+          - "http://admin.localhost"
+          - "http://localhost:3000"
+          - "http://localhost:3001"
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "PATCH"
+          - "DELETE"
+          - "OPTIONS"
+        accessControlAllowHeaders:
+          - "Authorization"
+          - "Content-Type"
+          - "X-Request-ID"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 100
+        addVaryHeader: true
+
+    compression-global:
+      compress: {}
+
+    ratelimit-api:
+      rateLimit:
+        average: 100
+        burst: 50

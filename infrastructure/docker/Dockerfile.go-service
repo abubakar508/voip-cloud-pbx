@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1
+
+############################
+# Build stage
+############################
+FROM golang:1.26-alpine AS builder
+
+RUN apk add --no-cache ca-certificates tzdata build-base git
+
+WORKDIR /app
+
+# Arguments to reuse same Dockerfile for different services
+ARG SERVICE_PATH
+ARG SERVICE_NAME
+
+# Copy go mod files and download dependencies
+COPY go.mod go.sum ./ || true
+
+# Fallback: if root go.mod doesn't exist yet, this step is effectively skipped.
+RUN if [ -f go.mod ]; then go mod download; fi
+
+# Copy the entire repository
+COPY . .
+
+# Build the service binary
+RUN cd "${SERVICE_PATH}" && \
+    go build -o "/out/${SERVICE_NAME}" ./...
+
+############################
+# Runtime stage
+############################
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates tzdata curl
+
+WORKDIR /app
+
+# Copy compiled binary
+ARG SERVICE_NAME
+COPY --from=builder "/out/${SERVICE_NAME}" "/app/${SERVICE_NAME}"
+
+ENV SERVICE_NAME=${SERVICE_NAME}
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 CMD curl -f "http://localhost:8080/healthz" || exit 1
+
+ENTRYPOINT ["/bin/sh", "-c", "/app/${SERVICE_NAME}"]

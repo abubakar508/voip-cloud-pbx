@@ -1,0 +1,1 @@
+This file exists to keep the scripts directory in version control. It will be replaced with actual scripts in later phases.
