@@ -2,6 +2,118 @@
 
 A full VoIP Cloud PBX platform built with Go microservices and Next.js frontends.
 
+
+ multi-service VoIP Cloud PBX platform built with Go (backend microservices) and Next.js (frontends). It includes:
+
+- Auth service with JWT and multi-tenant users
+- API gateway with JWT validation and reverse proxying
+- SIP service for SIP signaling (REGISTER/INVITE/BYE/CANCEL)
+- Media service for RTP handling, QoS tracking, and basic RTP forwarding
+- WebSocket service for real-time events
+- Dashboard web app for operators
+- Shared Go and TypeScript packages
+
+---
+
+## High-Level Architecture
+
+**Core components:**
+
+- **Auth Service (`services/auth-service`)**  
+  Provides tenant and user authentication:
+  - `POST /auth/register` – create tenant + tenant admin user  
+  - `POST /auth/login` – issue access + refresh JWTs  
+  - `POST /auth/refresh` – refresh access token  
+  - `GET /auth/me` – current user info (Bearer token)  
+
+- **API Gateway (`services/api-gateway`)**  
+  Single entry point for HTTP clients:
+  - Validates JWT access tokens
+  - Proxies `/auth/*` to auth-service
+  - Exposes protected `/api/*` routes for future services
+
+- **WebSocket Service (`services/websocket-service`)**  
+  Real-time channel for frontend:
+  - `/ws` endpoint (JWT-authenticated)
+  - Tracks connected clients and supports broadcasting
+
+- **SIP Service (`services/sip-service`)**  
+  SIP signaling microservice:
+  - Listens on UDP 5060 for SIP messages
+  - Handles REGISTER:
+    - Parses `To` and `Contact`
+    - Looks up SIP account in Postgres
+    - Stores registration binding in Redis (with TTL)
+  - Handles INVITE/BYE/CANCEL:
+    - Maintains in-memory call sessions
+    - Publishes `calls.started` and `calls.ended` events to NATS
+
+- **Media Service (`services/media-service`)**  
+  RTP and media pipeline:
+  - Listens for RTP on UDP port (default: 40000)
+  - Parses RTP packets with Pion RTP
+  - Tracks QoS per SSRC/address (packet count, loss, last seq)
+  - Forwards RTP between two configured endpoints (legs A and B) per call
+  - Subscribes to `calls.started` / `calls.ended` from NATS
+  - HTTP endpoints:
+    - `GET /healthz` – health check
+    - `GET /calls` – current/ended call sessions
+    - `GET /qos` – QoS snapshot
+    - `POST /calls/:callId/endpoints` – configure RTP endpoints for a call
+
+- **Dashboard Web App (`apps/dashboard-web`)**  
+  Operator dashboard (Next.js):
+  - Login via API gateway `/auth/login`
+  - Shows current user and tenant
+  - Displays:
+    - Active/ended calls (from media-service `/calls`)
+    - QoS stats (from media-service `/qos`)
+
+- **Shared Libraries**
+  - `packages/shared-go` – common Go utilities:
+    - Config loading (Postgres, Redis, NATS, JWT, etc.)
+    - Zap logger
+    - HTTP server wrapper (Gin + `/healthz`)
+  - `packages/shared-ts` – shared TypeScript types for frontend apps
+
+
+---
+
+
+Most configuration is via environment variables. Common ones:
+
+- **Postgres**
+  - `POSTGRES_HOST` (default: `postgres`)
+  - `POSTGRES_PORT` (default: `5432`)
+  - `POSTGRES_USER` (default: `voip`)
+  - `POSTGRES_PASSWORD` (default: `voip_password`)
+  - `POSTGRES_DB` (default: `voip_cloud_pbx`)
+
+- **Redis**
+  - `REDIS_HOST` (default: `redis`)
+  - `REDIS_PORT` (default: `6379`)
+  - `REDIS_PASSWORD` (optional)
+
+- **NATS**
+  - `NATS_URL` (default: `nats://nats:4222`)
+
+- **JWT**
+  - `JWT_ACCESS_SECRET`
+  - `JWT_REFRESH_SECRET`
+  - `JWT_ACCESS_TTL` (e.g., `15m`)
+  - `JWT_REFRESH_TTL` (e.g., `720h`)
+
+- **Ports**
+  - Auth service: `8081`
+  - API gateway: `8080`
+  - WebSocket service: `8084`
+  - SIP HTTP: `5070`, SIP UDP: `5060`
+  - Media HTTP: `8082`, RTP UDP: `40000`
+  - Dashboard: e.g., `3000` (depending on your Next.js dev/prod config)
+  - Traefik: as configured in `docker-compose.yml`
+
+---
+
 This README walks a new user from:
 
 1. Cloning the repo  
@@ -375,11 +487,22 @@ you can extend:
 
 ---
 
-If you run into any specific error when bringing the stack up (for example, a container not starting or a healthcheck failing), you can check it with:
 
-```bash
-cd infrastructure
-docker compose --env-file .env logs -f <service-name>
-```
 
 From there you can adjust env variables, ports, or database configuration to fit your own environment.
+
+## Notes and Next Steps
+
+This codebase intentionally focuses on:
+
+- Clear separation of services.
+- Simple, testable flows (auth, SIP, RTP, QoS).
+- Infrastructure that can be enhanced incrementally.
+
+Possible future enhancements (not yet implemented):
+
+- Full SIP digest authentication.
+- Real INVITE routing to registered contacts.
+- Persistent QoS and call analytics service.
+- Recording and playback.
+- WebRTC integration via Pion WebRTC.
