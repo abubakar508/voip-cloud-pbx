@@ -167,21 +167,47 @@ services:
       - "traefik.http.services.api.loadbalancer.server.port=80"
 
   dashboard-web:
-      build:
-        context: ./apps/dashboard-web
-        dockerfile: Dockerfile
-      container_name: voip-dashboard-web
-      restart: unless-stopped
-      environment:
-        NODE_ENV: production
-      networks:
-        - internal
-        - public
-      depends_on:
-        - traefik
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.app.rule=Host(`app.localhost`)"
-        - "traefik.http.routers.app.entrypoints=web"
-        - "traefik.http.routers.app.middlewares=compression-global"
-        - "traefik.http.services.app.loadbalancer.server.port=3000"
+    build:
+      context: ./apps/dashboard-web
+      dockerfile: Dockerfile
+    container_name: voip-dashboard-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    networks:
+      - internal
+      - public
+    depends_on:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`app.localhost`)"
+      - "traefik.http.routers.app.entrypoints=web"
+      - "traefik.http.routers.app.middlewares=compression-global"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: voip-auth-service
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PORT: "8081"
+      AUTH_SERVICE_PORT: "8081"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-voip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voip_password}
+      POSTGRES_DB: ${POSTGRES_DB:-voip_cloud_pbx}
+    depends_on:
+      - postgres
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`api.localhost`) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.routers.auth.middlewares=cors-global,compression-global,ratelimit-api"
+      - "traefik.http.services.auth.loadbalancer.server.port=8081"
