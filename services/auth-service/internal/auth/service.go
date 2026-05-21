@@ -4,9 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/abubakar508/voip-cloud-pbx/packages/shared-go/config"
 	"github.com/abubakar508/voip-cloud-pbx/services/auth-service/internal/models"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -18,6 +18,13 @@ var (
 type Service struct {
 	db  *gorm.DB
 	cfg *config.AppConfig
+}
+
+type refreshClaims struct {
+	UserID   string          `json:"uid"`
+	TenantID string          `json:"tid"`
+	Role     models.UserRole `json:"role"`
+	jwt.RegisteredClaims
 }
 
 func NewService(db *gorm.DB, cfg *config.AppConfig) *Service {
@@ -108,4 +115,52 @@ func (s *Service) generateToken(user models.User, secret string, ttl time.Durati
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
+}
+
+func (s *Service) ParseAccessToken(tokenStr string) (*customClaims, error) {
+	if tokenStr == "" {
+		return nil, ErrInvalidCredentials
+	}
+	token, err := jwt.ParseWithClaims(tokenStr, &customClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(s.cfg.JWTAccessSecret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*customClaims)
+	if !ok || !token.Valid {
+		return nil, ErrInvalidCredentials
+	}
+	return claims, nil
+}
+
+func (s *Service) ParseRefreshToken(tokenStr string) (*refreshClaims, error) {
+	if tokenStr == "" {
+		return nil, ErrInvalidCredentials
+	}
+	token, err := jwt.ParseWithClaims(tokenStr, &refreshClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(s.cfg.JWTRefreshSecret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*refreshClaims)
+	if !ok || !token.Valid {
+		return nil, ErrInvalidCredentials
+	}
+	return claims, nil
+}
+
+func (s *Service) RefreshAccessToken(refreshToken string) (string, error) {
+	claims, err := s.ParseRefreshToken(refreshToken)
+	if err != nil {
+		return "", err
+	}
+
+	var user models.User
+	if err := s.db.Where("id = ?", claims.UserID).First(&user).Error; err != nil {
+		return "", ErrInvalidCredentials
+	}
+
+	return s.generateToken(user, s.cfg.JWTAccessSecret, s.cfg.JWTAccessTTL)
 }

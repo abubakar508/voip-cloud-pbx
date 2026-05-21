@@ -16,3 +16,11 @@ type AuthResponse struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
 }
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
+type RefreshResponse struct {
+	AccessToken string `json:"accessToken"`
+}

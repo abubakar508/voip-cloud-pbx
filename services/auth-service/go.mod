@@ -5,11 +5,11 @@ go 1.26.1
 require (
 	github.com/abubakar508/voip-cloud-pbx/packages/shared-go v0.0.0-20260521154349-196c95dbc9a3
 	github.com/gin-gonic/gin v1.12.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	go.uber.org/zap v1.28.0
+	golang.org/x/crypto v0.50.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
-	github.com/golang-jwt/jwt/v5 v5.2.0
-	golang.org/x/crypto/bcrypt v0.23.0
 )
 
 require (
@@ -54,7 +54,6 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.22.0 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect

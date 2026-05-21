@@ -15,9 +15,26 @@ func NewHandler(authSvc *auth.Service) *Handler {
 	return &Handler{authSvc: authSvc}
 }
 
+func (h *Handler) handleMe(c *gin.Context) {
+	userCtx, ok := GetContextUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"userId":   userCtx.ID,
+		"tenantId": userCtx.TenantID,
+		"role":     userCtx.Role,
+	})
+}
+
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	r.POST("/auth/register", h.handleRegister)
 	r.POST("/auth/login", h.handleLogin)
+
+	authGroup := r.Group("/auth")
+	authGroup.Use(AuthMiddleware(h.authSvc))
+	authGroup.GET("/me", h.handleMe)
 }
 
 func (h *Handler) handleRegister(c *gin.Context) {
@@ -62,5 +79,27 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		"tenantId":     user.TenantID,
 		"accessToken":  access,
 		"refreshToken": refresh,
+	})
+}
+
+func (h *Handler) handleRefresh(c *gin.Context) {
+	var req auth.RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": err.Error()})
+		return
+	}
+
+	newAccess, err := h.authSvc.RefreshAccessToken(req.RefreshToken)
+	if err != nil {
+		if err == auth.ErrInvalidCredentials {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"accessToken": newAccess,
 	})
 }
